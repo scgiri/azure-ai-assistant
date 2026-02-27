@@ -146,6 +146,34 @@ It runs on pushes and pull requests and performs:
 - import smoke tests
 - dummy data generation smoke test
 
+## GitHub Actions CD (Azure Container Apps)
+
+This repo includes CD workflow: `.github/workflows/cd-aca.yml`.
+
+It deploys your app to Azure Container Apps by:
+- logging into Azure with OIDC (`azure/login`)
+- building container image from `Dockerfile`
+- pushing image to Azure Container Registry
+- deploying latest image to your Azure Container App
+
+Required GitHub Secrets:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `ACR_LOGIN_SERVER`
+- `ACR_USERNAME`
+- `ACR_PASSWORD`
+- `RESOURCE_GROUP`
+- `CONTAINER_APP_NAME`
+- `CONTAINERAPPS_ENVIRONMENT`
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_DEPLOYMENT`
+- `AZURE_OPENAI_API_VERSION`
+
+Full setup guide:
+- `docs/DEPLOY_AZURE_CONTAINER_APPS.md`
+
 ## Example output (structured JSON)
 
 ```json
@@ -208,4 +236,5 @@ python scripts/generate_dummy_data.py --flights 100 --weather 120 --crm 80 --rea
 
 - Beginner walkthrough: `docs/LEARNING_GUIDE.md`
 - Architecture and diagram: `docs/ARCHITECTURE.md`
+- Deployment guide: `docs/DEPLOY_AZURE_CONTAINER_APPS.md`
 
