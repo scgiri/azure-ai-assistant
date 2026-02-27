@@ -1,0 +1,29 @@
+[
+  {
+    "customer_id": "CUST-1001",
+    "name": "Contoso Holdings",
+    "tier": "gold",
+    "region": "APAC",
+    "last_contact": "2026-02-10",
+    "open_opportunities": 3,
+    "account_manager": "Riya Sharma"
+  },
+  {
+    "customer_id": "CUST-1002",
+    "name": "Fabrikam Retail",
+    "tier": "silver",
+    "region": "NA",
+    "last_contact": "2026-02-22",
+    "open_opportunities": 1,
+    "account_manager": "Daniel Reed"
+  },
+  {
+    "customer_id": "CUST-1003",
+    "name": "Northwind Logistics",
+    "tier": "platinum",
+    "region": "EMEA",
+    "last_contact": "2026-02-25",
+    "open_opportunities": 5,
+    "account_manager": "Ananya Patel"
+  }
+]

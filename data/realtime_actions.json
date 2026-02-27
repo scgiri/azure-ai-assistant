@@ -1,0 +1,20 @@
+[
+  {
+    "action_name": "send_alert",
+    "default_status": "executed",
+    "target_system": "Azure Event Grid",
+    "expected_latency_ms": 120
+  },
+  {
+    "action_name": "create_incident",
+    "default_status": "executed",
+    "target_system": "Azure Monitor",
+    "expected_latency_ms": 240
+  },
+  {
+    "action_name": "update_inventory",
+    "default_status": "executed",
+    "target_system": "Azure Service Bus",
+    "expected_latency_ms": 180
+  }
+]

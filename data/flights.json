@@ -1,0 +1,29 @@
+[
+  {
+    "route": "HYD-SIN",
+    "airline": "Azure Air",
+    "flight_number": "AZ101",
+    "departure_time": "09:15",
+    "arrival_time": "15:35",
+    "duration": "6h 20m",
+    "price_usd": 420
+  },
+  {
+    "route": "SEA-SFO",
+    "airline": "Contoso Sky",
+    "flight_number": "CS220",
+    "departure_time": "11:40",
+    "arrival_time": "13:55",
+    "duration": "2h 15m",
+    "price_usd": 180
+  },
+  {
+    "route": "LHR-DXB",
+    "airline": "Fabrikam Jet",
+    "flight_number": "FJ808",
+    "departure_time": "20:05",
+    "arrival_time": "06:30",
+    "duration": "7h 25m",
+    "price_usd": 510
+  }
+]

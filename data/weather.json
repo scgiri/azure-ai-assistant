@@ -1,0 +1,26 @@
+[
+  {
+    "city": "Seattle",
+    "date": "2026-03-01",
+    "summary": "Light rain",
+    "temperature_c": 11,
+    "wind_kph": 18,
+    "humidity": 76
+  },
+  {
+    "city": "Singapore",
+    "date": "2026-03-12",
+    "summary": "Humid with scattered clouds",
+    "temperature_c": 31,
+    "wind_kph": 12,
+    "humidity": 83
+  },
+  {
+    "city": "Hyderabad",
+    "date": "2026-03-12",
+    "summary": "Sunny",
+    "temperature_c": 34,
+    "wind_kph": 9,
+    "humidity": 35
+  }
+]
