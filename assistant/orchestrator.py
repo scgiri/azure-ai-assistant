@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from openai import AzureOpenAI
+from openai import NotFoundError
 
 from assistant.models import ActionResult, AssistantResponse
 from assistant.tool_registry import TOOL_REGISTRY
@@ -27,25 +28,33 @@ class AzureToolCallingAssistant:
         action_results: list[ActionResult] = []
 
         for _ in range(5):
-            response = self.client.chat.completions.create(
-                model=self.deployment,
-                messages=messages,
-                tools=TOOLS,
-                tool_choice="auto",
-                temperature=0,
-                response_format={"type": "json_object"},
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.deployment,
+                    messages=messages,
+                    tools=TOOLS,
+                    tool_choice="auto",
+                    temperature=0,
+                    response_format={"type": "json_object"},
+                )
+            except NotFoundError as exc:
+                raise RuntimeError(
+                    "Azure OpenAI returned 404 Resource not found. Verify AZURE_OPENAI_ENDPOINT uses the Azure OpenAI resource URL "
+                    "(https://<resource>.openai.azure.com/) and AZURE_OPENAI_DEPLOYMENT is the deployment name from Model Deployments. "
+                    f"Current deployment: '{self.deployment}'."
+                ) from exc
 
             assistant_message = response.choices[0].message
             tool_calls = assistant_message.tool_calls or []
 
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_message.content or "",
-                    "tool_calls": [tc.model_dump() for tc in tool_calls],
-                }
-            )
+            assistant_payload: dict[str, Any] = {
+                "role": "assistant",
+                "content": assistant_message.content or "",
+            }
+            if tool_calls:
+                assistant_payload["tool_calls"] = [tc.model_dump() for tc in tool_calls]
+
+            messages.append(assistant_payload)
 
             if not tool_calls:
                 break
@@ -76,13 +85,20 @@ class AzureToolCallingAssistant:
                     }
                 )
 
-        final_response = self.client.chat.completions.create(
-            model=self.deployment,
-            messages=messages,
-            tools=TOOLS,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
+        try:
+            final_response = self.client.chat.completions.create(
+                model=self.deployment,
+                messages=messages,
+                tools=TOOLS,
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+        except NotFoundError as exc:
+            raise RuntimeError(
+                "Azure OpenAI returned 404 Resource not found. Verify AZURE_OPENAI_ENDPOINT uses the Azure OpenAI resource URL "
+                "(https://<resource>.openai.azure.com/) and AZURE_OPENAI_DEPLOYMENT is the deployment name from Model Deployments. "
+                f"Current deployment: '{self.deployment}'."
+            ) from exc
 
         final_message = final_response.choices[0].message.content or "{}"
 

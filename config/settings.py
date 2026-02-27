@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -15,6 +16,28 @@ class AzureOpenAISettings:
     api_version: str = "2024-02-01"
 
 
+def _normalize_endpoint(raw_endpoint: str) -> str:
+    endpoint = raw_endpoint.strip()
+    if not endpoint:
+        return endpoint
+
+    if not endpoint.startswith(("http://", "https://")):
+        endpoint = f"https://{endpoint}"
+
+    parsed = urlparse(endpoint)
+    host = parsed.netloc.lower()
+
+    if host.endswith(".services.ai.azure.com"):
+        host = host.replace(".services.ai.azure.com", ".openai.azure.com")
+    elif host.endswith(".cognitiveservices.azure.com"):
+        host = host.replace(".cognitiveservices.azure.com", ".openai.azure.com")
+
+    if not host:
+        return endpoint
+
+    return f"https://{host}/"
+
+
 def load_settings(
     *,
     endpoint: Optional[str] = None,
@@ -24,7 +47,7 @@ def load_settings(
 ) -> AzureOpenAISettings:
     load_dotenv()
 
-    resolved_endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    resolved_endpoint = _normalize_endpoint(endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", ""))
     resolved_api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY", "")
     resolved_deployment = deployment or os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
     resolved_api_version = api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
