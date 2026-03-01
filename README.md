@@ -8,21 +8,20 @@ An Azure-centric AI assistant that uses **Azure OpenAI function calling (tools)*
 
 It returns **structured JSON** for backend systems and avoids free-form action responses.
 
-## Best approach for your scenario
+## Why function calling?
 
-For your multiple business actions + strict JSON requirement, the best option is:
-
-**B. Use Azure OpenAI function calling (tools) capability.**
-
-Why:
-- It gives the model a controlled way to call specific backend actions.
-- You validate/execute each action in code.
-- You can enforce deterministic JSON output contracts.
+For multiple business actions + strict JSON output, the best approach is **Azure OpenAI function calling (tools)**:
+- The model calls specific backend actions in a controlled way
+- You validate and execute each action in code
+- You enforce deterministic JSON output contracts
 
 ## Project structure
 
 ```text
 azure-ai-assistant/
+├─ .github/workflows/
+│  ├─ ci.yml              # CI: lint, test, build & push to ACR
+│  └─ cd-aca.yml           # CD: deploy to Azure Container Apps
 ├─ assistant/
 │  ├─ __init__.py
 │  ├─ client.py
@@ -33,16 +32,27 @@ azure-ai-assistant/
 ├─ config/
 │  ├─ __init__.py
 │  └─ settings.py
+├─ data/
+│  ├─ crm_records.json
+│  ├─ flights.json
+│  ├─ realtime_actions.json
+│  └─ weather.json
+├─ docs/
+│  ├─ ARCHITECTURE.md
+│  ├─ DEPLOY_AZURE_CONTAINER_APPS.md
+│  └─ LEARNING_GUIDE.md
+├─ scripts/
+│  └─ generate_dummy_data.py
 ├─ tools/
 │  ├─ __init__.py
 │  ├─ crm_service.py
+│  ├─ data_loader.py
 │  ├─ flight_service.py
 │  ├─ realtime_service.py
 │  └─ weather_service.py
-├─ docs/
-│  ├─ ARCHITECTURE.md
-│  └─ LEARNING_GUIDE.md
 ├─ .env.example
+├─ api.py
+├─ Dockerfile
 ├─ main.py
 └─ requirements.txt
 ```
@@ -50,42 +60,43 @@ azure-ai-assistant/
 ## Prerequisites
 
 - Python 3.10+
-- Azure OpenAI resource
-- A deployed chat model in Azure OpenAI (example: `gpt-4o`)
+- Azure OpenAI resource with a deployed chat model (e.g. `gpt-4o`)
+- (Optional) Docker, Azure CLI, Azure Container Registry for containerised deployment
 
 ## Setup
 
 1) Create virtual environment and install dependencies
 
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+source .venv/bin/activate        # macOS / Linux
+# .\.venv\Scripts\Activate.ps1   # Windows PowerShell
 pip install -r requirements.txt
 ```
 
 2) Configure environment variables
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 ```
 
 Edit `.env` and set:
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_DEPLOYMENT`
-- `AZURE_OPENAI_API_VERSION` (default `2024-02-01`)
+- `AZURE_OPENAI_ENDPOINT` — your Azure OpenAI resource URL
+- `AZURE_OPENAI_API_KEY` — API key from the Azure portal
+- `AZURE_OPENAI_DEPLOYMENT` — model deployment name (e.g. `gpt-4o`)
+- `AZURE_OPENAI_API_VERSION` — API version (e.g. `2025-01-01-preview`)
 
 ## Run
 
-### Option A: Use `.env`
+### CLI (using `.env`)
 
-```powershell
+```bash
 python main.py --prompt "Book a flight from Hyderabad to Singapore on 2026-03-12 for Ravi Kumar"
 ```
 
-### Option B: Pass endpoint/key/deployment directly (as requested)
+### CLI (inline overrides)
 
-```powershell
+```bash
 python main.py \
   --prompt "Check weather in Seattle on 2026-03-01" \
   --endpoint "https://<your-resource>.openai.azure.com/" \
@@ -97,138 +108,135 @@ python main.py \
 
 Start server:
 
-```powershell
+```bash
 uvicorn api:app --reload
 ```
 
 Call API:
 
-```powershell
+```bash
 curl -X POST "http://127.0.0.1:8000/assist" \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Retrieve CRM data for customer CUST-1001"
-  }'
+  -d '{"prompt": "Retrieve CRM data for customer CUST-1001"}'
 ```
 
-Open interactive docs:
-- http://127.0.0.1:8000/docs
+Interactive docs: http://127.0.0.1:8000/docs
 
-## Run with Docker (production-style)
+## Run with Docker
 
-Build image:
+Build and run:
 
-```powershell
+```bash
 docker build -t azure-action-assistant:latest .
-```
 
-Run container:
-
-```powershell
 docker run --rm -p 8000:8000 \
   -e AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/" \
   -e AZURE_OPENAI_API_KEY="<your-api-key>" \
   -e AZURE_OPENAI_DEPLOYMENT="gpt-4o" \
-  -e AZURE_OPENAI_API_VERSION="2024-02-01" \
+  -e AZURE_OPENAI_API_VERSION="2025-01-01-preview" \
   azure-action-assistant:latest
 ```
 
-Then open:
-- http://127.0.0.1:8000/docs
+Then open: http://127.0.0.1:8000/docs
 
-## GitHub Actions CI
+### Push to Azure Container Registry
 
-This repo includes workflow: `.github/workflows/ci.yml`.
+```bash
+az acr login --name aiassistantacr
+ACR_SERVER=$(az acr show --name aiassistantacr --query loginServer -o tsv)
 
-It runs on pushes and pull requests and performs:
-- dependency installation
-- Python syntax validation
-- import smoke tests
-- dummy data generation smoke test
+docker tag azure-action-assistant:latest $ACR_SERVER/azure-action-assistant:v1
+docker push $ACR_SERVER/azure-action-assistant:v1
+```
 
-## GitHub Actions CD (Azure Container Apps)
+## CI/CD
 
-This repo includes CD workflow: `.github/workflows/cd-aca.yml`.
+### GitHub Actions CI (`.github/workflows/ci.yml`)
 
-It deploys your app to Azure Container Apps by:
-- logging into Azure with OIDC (`azure/login`)
-- building container image from `Dockerfile`
-- pushing image to Azure Container Registry
-- deploying latest image to your Azure Container App
+Runs on every push and pull request:
+1. **build-and-validate** — installs dependencies, validates Python syntax, runs import smoke tests and dummy data generation
+2. **push-to-acr** — (main branch only) authenticates to Azure via OIDC, builds the Docker image, and pushes it to Azure Container Registry with both a commit-SHA tag and `latest`
 
-Required GitHub Secrets:
+Required GitHub secrets for ACR push:
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
-- `ACR_LOGIN_SERVER`
-- `ACR_USERNAME`
-- `ACR_PASSWORD`
-- `RESOURCE_GROUP`
-- `CONTAINER_APP_NAME`
-- `CONTAINERAPPS_ENVIRONMENT`
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_DEPLOYMENT`
-- `AZURE_OPENAI_API_VERSION`
 
-Full setup guide:
-- `docs/DEPLOY_AZURE_CONTAINER_APPS.md`
+### GitHub Actions CD (`.github/workflows/cd-aca.yml`)
+
+Deploys to Azure Container Apps on pushes to `main` (or manual dispatch):
+- Builds and pushes the container image to ACR
+- Deploys the latest image to your Container App with environment variables injected
+
+Required GitHub secrets:
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+- `ACR_LOGIN_SERVER`, `ACR_USERNAME`, `ACR_PASSWORD`
+- `RESOURCE_GROUP`, `CONTAINER_APP_NAME`, `CONTAINERAPPS_ENVIRONMENT`
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`
+
+Full setup guide: `docs/DEPLOY_AZURE_CONTAINER_APPS.md`
 
 ## Example output (structured JSON)
 
 ```json
 {
   "response_type": "action_result",
-  "request_id": "9d5f8d7e-78f7-45ba-9be1-c88c9f8bf6a9",
+  "request_id": "da0b57d8-8599-448e-b964-9ce4d300613f",
   "actions": [
     {
-      "tool": "check_weather",
+      "tool": "book_flight",
       "status": "success",
       "data": {
-        "city": "Seattle",
-        "date": "2026-03-01",
-        "summary": "Partly cloudy",
-        "temperature_c": 24,
-        "wind_kph": 13,
-        "provider": "Azure-Weather-Mock"
+        "booking_id": "FL-32D5AA4C",
+        "origin": "Hyderabad",
+        "destination": "Singapore",
+        "departure_date": "2026-03-12",
+        "traveler_name": "Ravi Kumar",
+        "status": "confirmed",
+        "provider": "Azure-Travel-Mock",
+        "flight": {
+          "route": "HYD-SIN",
+          "airline": "Azure Air",
+          "flight_number": "AZ101",
+          "departure_time": "09:15",
+          "arrival_time": "15:35",
+          "duration": "6h 20m",
+          "price_usd": 420
+        }
       },
-      "timestamp_utc": "2026-02-26T10:21:55.123456+00:00"
+      "timestamp_utc": "2026-03-01T18:42:18.074160+00:00"
     }
-  ]
+  ],
+  "message": "Your flight has been successfully booked."
 }
 ```
 
 ## Included dummy data (for learning/demo)
 
-The project includes JSON datasets in `data/` used by tools:
+JSON datasets in `data/` used by the mock tools:
 
-- `data/flights.json` routes: `HYD-SIN`, `SEA-SFO`, `LHR-DXB`
-- `data/weather.json` examples: Seattle (`2026-03-01`), Singapore (`2026-03-12`), Hyderabad (`2026-03-12`)
-- `data/crm_records.json` customer IDs: `CUST-1001`, `CUST-1002`, `CUST-1003`
-- `data/realtime_actions.json` actions: `send_alert`, `create_incident`, `update_inventory`
+| File | Examples |
+|------|----------|
+| `flights.json` | Routes: `HYD-SIN`, `SEA-SFO`, `LHR-DXB` |
+| `weather.json` | Cities: Seattle, Singapore, Hyderabad |
+| `crm_records.json` | IDs: `CUST-1001`, `CUST-1002`, `CUST-1003` |
+| `realtime_actions.json` | Actions: `send_alert`, `create_incident`, `update_inventory` |
 
 Try prompts like:
-- "Retrieve CRM data for customer CUST-1002"
-- "Book a flight from Hyderabad to Singapore on 2026-03-12 for Ravi Kumar"
-- "Execute realtime action send_alert with payload severity high and service payments"
+- `"Retrieve CRM data for customer CUST-1002"`
+- `"Book a flight from Hyderabad to Singapore on 2026-03-12 for Ravi Kumar"`
+- `"Execute realtime action send_alert with payload severity high and service payments"`
 
-### Regenerate larger dummy datasets
+### Regenerate dummy datasets
 
-You can regenerate all dummy files using:
-
-```powershell
-python scripts/generate_dummy_data.py
-```
-
-Custom sizes:
-
-```powershell
+```bash
+python scripts/generate_dummy_data.py                          # defaults
 python scripts/generate_dummy_data.py --flights 100 --weather 120 --crm 80 --realtime 60 --seed 7
 ```
 
 ## Important notes
 
-- Tool implementations are mocked for learning; replace with real APIs/services.
+- Tool implementations are mocked for learning; replace with real APIs/services in production.
 - Do not commit `.env` or secrets.
 - Keep strict JSON contract for backend reliability.
 
