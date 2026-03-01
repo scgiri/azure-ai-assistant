@@ -17,6 +17,10 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  ACR_NAME: aiassistantacr
+  IMAGE_NAME: azure-action-assistant
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,19 +37,25 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Log in to ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
       - name: Build image tag
         id: vars
-        run: echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "ACR_LOGIN_SERVER=$(az acr show --name ${{ env.ACR_NAME }} --query loginServer -o tsv)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        run: |
+          FULL_IMAGE=${{ steps.vars.outputs.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}
+          docker build -t $FULL_IMAGE:${{ steps.vars.outputs.IMAGE_TAG }} .
+          docker push $FULL_IMAGE:${{ steps.vars.outputs.IMAGE_TAG }}
 
       - name: Deploy to Azure Container Apps
         uses: azure/container-apps-deploy-action@v2
         with:
-          appSourcePath: ${{ github.workspace }}
-          dockerfilePath: Dockerfile
-          registryUrl: ${{ secrets.ACR_LOGIN_SERVER }}
-          registryUsername: ${{ secrets.ACR_USERNAME }}
-          registryPassword: ${{ secrets.ACR_PASSWORD }}
-          imageToBuild: ${{ secrets.ACR_LOGIN_SERVER }}/azure-action-assistant:${{ steps.vars.outputs.IMAGE_TAG }}
+          imageToDeploy: ${{ steps.vars.outputs.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.IMAGE_TAG }}
           containerAppName: ${{ secrets.CONTAINER_APP_NAME }}
           resourceGroup: ${{ secrets.RESOURCE_GROUP }}
           containerAppEnvironment: ${{ secrets.CONTAINERAPPS_ENVIRONMENT }}

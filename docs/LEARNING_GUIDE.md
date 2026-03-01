@@ -14,6 +14,9 @@ If you only prompt for JSON, the model can still drift. Function calling gives y
 - `main.py`  
   Entry point. Reads prompt + credentials, runs assistant, prints JSON.
 
+- `api.py`  
+  FastAPI server exposing `POST /assist` and `GET /health`.
+
 - `config/settings.py`  
   Loads Azure endpoint/key/deployment from params or `.env`.
 
@@ -31,8 +34,26 @@ If you only prompt for JSON, the model can still drift. Function calling gives y
 - `assistant/tool_registry.py`  
   Maps tool names to Python functions.
 
+- `tools/data_loader.py`  
+  Loads JSON datasets from `data/` directory.
+
 - `tools/*.py`  
-  Business actions (currently mock implementations).
+  Business actions (currently mock implementations using `data/*.json`).
+
+- `data/*.json`  
+  Mock datasets: flights, weather, CRM records, real-time actions.
+
+- `scripts/generate_dummy_data.py`  
+  Regenerates mock datasets with configurable sizes.
+
+- `Dockerfile`  
+  Production container image (Python 3.12-slim, runs uvicorn).
+
+- `.github/workflows/ci.yml`  
+  CI: lint, smoke tests, build & push Docker image to ACR.
+
+- `.github/workflows/cd-aca.yml`  
+  CD: deploy to Azure Container Apps (OIDC auth, no ACR credentials needed).
 
 ## 3) Request lifecycle
 

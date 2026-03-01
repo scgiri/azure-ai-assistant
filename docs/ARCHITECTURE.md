@@ -6,19 +6,24 @@ This project uses Azure OpenAI function-calling as the orchestration layer betwe
 
 ```mermaid
 flowchart LR
-    U[User / Backend Caller] --> F[FastAPI /assist endpoint]
+    U[User / Backend Caller] --> API[FastAPI /assist endpoint]
     U --> M[main.py CLI]
-    F --> C[config.settings load env or args]
+    API --> C[config.settings load env or args]
     M --> C
     C --> O[assistant.orchestrator]
     O --> AOAI[Azure OpenAI Chat Completion]
     AOAI -->|Tool call request| TR[assistant.tool_registry]
-    TR --> F[tools.flight_service]
-    TR --> W[tools.weather_service]
+    TR --> FS[tools.flight_service]
+    TR --> WS[tools.weather_service]
     TR --> CRM[tools.crm_service]
     TR --> RT[tools.realtime_service]
-    F --> O
-    W --> O
+    FS --> DL[tools.data_loader]
+    WS --> DL
+    CRM --> DL
+    RT --> DL
+    DL --> DATA[(data/*.json)]
+    FS --> O
+    WS --> O
     CRM --> O
     RT --> O
     O --> J[Strict Structured JSON Output]
@@ -27,11 +32,18 @@ flowchart LR
 
 ## Flow summary
 
-1. Request enters via `main.py`.
-    - or via FastAPI `POST /assist`.
-2. Settings are loaded from args or environment.
+1. Request enters via `main.py` (CLI) or FastAPI `POST /assist`.
+2. Settings are loaded from args or `.env` environment variables.
 3. Orchestrator sends prompt + tool definitions to Azure OpenAI.
-4. Model selects tool(s).
-5. Python executes selected tool(s).
-6. Results are fed back to model context.
-7. Final response is emitted as strict JSON for backend systems.
+4. Model selects tool(s) and returns structured tool-call requests.
+5. `tool_registry` dispatches to the appropriate service in `tools/`.
+6. Each service uses `data_loader` to read from `data/*.json`.
+7. Tool results are fed back to the model context.
+8. Final response is emitted as strict JSON for backend systems.
+
+## Deployment
+
+- **Docker image** built from `Dockerfile` (Python 3.12-slim)
+- **CI** (`.github/workflows/ci.yml`): validates, builds, and pushes image to Azure Container Registry
+- **CD** (`.github/workflows/cd-aca.yml`): deploys to Azure Container Apps
+- ACR auth uses OIDC — no registry username/password needed
