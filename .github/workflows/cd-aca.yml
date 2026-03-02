@@ -61,8 +61,4 @@ jobs:
           containerAppEnvironment: ${{ secrets.CONTAINERAPPS_ENVIRONMENT }}
           targetPort: 8000
           ingress: external
-          environmentVariables: |
-            AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
-            AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
-            AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-            AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }}
+          environmentVariables: AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }}
